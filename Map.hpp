@@ -3,23 +3,19 @@
 #include <iostream>
 #include <cmath>
 #include <ctime>
+#include <stdexcept>
 #include <typeinfo>
 
 #define MAX_HEIGHT 32
 
 namespace cs540{  
   
-  // Forward declare nested class for visibility in free funcitons
-  //  class Iterator;
-  //class ConstIterator;
-  // class ReverseIterator;
-
   template <typename Key_T, typename Mapped_T> class Map {
     
   private:
     // Member Type
     typedef std::pair<const Key_T, Mapped_T> ValueType;
-
+    
     // Node definition
     typedef struct Node{
       ValueType kv;
@@ -38,6 +34,7 @@ namespace cs540{
 
     // Skip list head
     Node* head[MAX_HEIGHT];
+    
     // Current max level 
     size_t max_level;
 
@@ -60,10 +57,10 @@ namespace cs540{
       }
     }
 
-    Node* findNode(const Key_T &k){
+    Node* findNode(const Key_T &k) const{
       Node* current = head[max_level];
       for(int i = max_level; i >= 0; i--){
-	while(current->forwards[i] != nullptr && current->forwards[i]->kv.first <= k){
+	while(current->forwards[i] != nullptr && (current->forwards[i]->kv.first < k || current->forwards[i]->kv.first == k)){
 	  current = current->forwards[i];
 	}
       }
@@ -72,9 +69,16 @@ namespace cs540{
 
 
   public:
+    // Forward declare nested class for visibility in free funcitons
+    class Iterator;
+    class ConstIterator;
+    class ReverseIterator;
     // Define nested classes
+
     class Iterator{
       friend class Map;
+      friend class ConstIterator;
+      friend class ReverseIterator;
     private:
       Node* nPtr;
     public:
@@ -101,7 +105,7 @@ namespace cs540{
 	nPtr = nPtr->backwards[0];
 	return temp;
       }
-      virtual ValueType &operator*() const{
+      ValueType &operator*() const{
 	return nPtr->kv;
       }
       ValueType *operator->() const{
@@ -113,15 +117,56 @@ namespace cs540{
       bool operator!=(const Iterator &i){
 	return (nPtr != i.nPtr);
       }
+      bool operator==(const ConstIterator &i){
+	return (nPtr == i.nPtr);
+      }
+      bool operator!=(const ConstIterator &i){
+	return (nPtr != i.nPtr);
+      }
+      bool operator==(const ReverseIterator &i){
+	return (nPtr == i.nPtr);
+      }
+      bool operator!=(const ReverseIterator &i){
+	return (nPtr != i.nPtr);
+      }
     };
     
-    class ConstIterator: public Iterator{
+    class ConstIterator{
+      friend class Iterator;
+      friend class ReverseIterator;
+    private:
+      Node* nPtr;
     public:
-      const ValueType &operator*() const{}
-      const ValueType *operator->() const{}
+      ConstIterator(Node* n) : nPtr(n){}
+      const ValueType &operator*() const{
+	return nPtr->kv;
+      }
+      const ValueType *operator->() const{
+	return &(nPtr->kv);
+      }
+      bool operator==(const Iterator &i){
+	return (nPtr == i.nPtr);
+      }
+      bool operator!=(const Iterator &i){
+	return (nPtr != i.nPtr);
+      }
+      bool operator==(const ConstIterator &i){
+	return (nPtr == i.nPtr);
+      }
+      bool operator!=(const ConstIterator &i){
+	return (nPtr != i.nPtr);
+      }
+      bool operator==(const ReverseIterator &i){
+	return (nPtr == i.nPtr);
+      }
+      bool operator!=(const ReverseIterator &i){
+	return (nPtr != i.nPtr);
+      }
     };
     
-    class ReverseIterator: public Iterator{
+    class ReverseIterator{
+      friend class Iterator;
+      friend class ConstIterator;
     private:
       Node* nPtr;
     public:
@@ -147,6 +192,24 @@ namespace cs540{
       ValueType *operator->() const{
 	return &(nPtr->kv);
       }
+      bool operator==(const Iterator &i){
+	return (nPtr == i.nPtr);
+      }
+      bool operator!=(const Iterator &i){
+	return (nPtr != i.nPtr);
+      }
+      bool operator==(const ConstIterator &i){
+	return (nPtr == i.nPtr);
+      }
+      bool operator!=(const ConstIterator &i){
+	return (nPtr != i.nPtr);
+      }
+      bool operator==(const ReverseIterator &i){
+	return (nPtr == i.nPtr);
+      }
+      bool operator!=(const ReverseIterator &i){
+	return (nPtr != i.nPtr);
+      }
     };
     
     // Constructor & Assingment Operator
@@ -156,11 +219,27 @@ namespace cs540{
 	head[i] = nullptr;
       }
     }
-    Map(const Map&){
-      
+    Map(const Map &m){
+      max_level = m.max_level;
+      Node* current = m.head[0];
+      for(int i = 0; i < MAX_HEIGHT; i++){
+	while(current != nullptr && current->forwards[i] != nullptr){
+	  head[i];
+	}
+      }
     }
-    Map &operator=(const Map&){}
-    Map(std::initializer_list<std::pair<const Key_T, Mapped_T>>){}
+    Map &operator=(const Map&){
+
+    }
+    Map(std::initializer_list<std::pair<const Key_T, Mapped_T> > lst){
+      max_level = 0;
+      for(int i = 0; i < MAX_HEIGHT; i++){
+	head[i] = nullptr;
+      }
+      for(auto it = lst.begin(); it != lst.end(); it++){
+	insert(*it);
+      }
+    }
     ~Map(){
       Node* current = head[0];
       while(current != nullptr){
@@ -208,8 +287,14 @@ namespace cs540{
       Iterator e(nullptr);
       return e;
     }
-    ConstIterator begin() const{}
-    ConstIterator end() const{}
+    ConstIterator begin() const{
+      ConstIterator b(head[0]);
+      return b;
+    }
+    ConstIterator end() const{
+      ConstIterator e(nullptr);
+      return e;
+    }
     ReverseIterator rbegin(){
       Node* current = head[0];
       while(current->forwards[0] != nullptr){
@@ -231,12 +316,12 @@ namespace cs540{
 	return end();
       }
       else{
+	std::cout<<"SEARCHING"<<std::endl;
 	for(int i = max_level; i >=0; i--){
-	  while(current->forwards[i] != nullptr && current->forwards[i]->kv.first <= kIn){
+	  while(current->forwards[i] != nullptr && (current->forwards[i]->kv.first < kIn || current->forwards[i]->kv.first == kIn)){
 	    current = current->forwards[i];
 	  } 
 	}
-	//current = current->forwards[0];
       
 	if(current->kv.first == kIn){
 	  Iterator found(current);
@@ -250,10 +335,28 @@ namespace cs540{
       }
     }
     ConstIterator find(const Key_T& k) const{
-      
+      Node* n = findNode(k);
+      ConstIterator ci(n);
+      return ci;
     }
-    Mapped_T &at(const Key_T &){}
-    const Mapped_T &at(const Key_T &) const{}
+    Mapped_T &at(const Key_T &k){
+      Node* n = findNode(k);
+      if(n->kv.first == k){
+	return n->kv.second;
+      }
+      else{
+	throw std::out_of_range("Key Not Found");
+      }
+    }
+    const Mapped_T &at(const Key_T &k) const{
+      Node* n =findNode(k);
+      if(n->kv.first ==k){
+	return n->kv.second;
+      } 
+      else{
+        throw std::out_of_range("Key Not Found");
+      }
+    }
     Mapped_T &operator[](const Key_T &k){
       Node* update[MAX_HEIGHT];
       Node* current = head[max_level];
@@ -268,7 +371,7 @@ namespace cs540{
       }
       else{
 	for(int i = max_level; i >= 0; i--){
-	  while(current->forwards[i] != nullptr && current->forwards[i]->kv.first <= k){
+	  while(current->forwards[i] != nullptr && (current->forwards[i]->kv.first < k || current->forwards[i]->kv.first == k)){
 	    current = current->forwards[i];
 	  }
 	  update[i] = current;
@@ -334,7 +437,7 @@ namespace cs540{
       else{
 	for(int i = max_level; i >= 0; i--){
 	  std::cout<<"level: "<<i<<std::endl;
-	  while(current->forwards[i] != nullptr && current->forwards[i]->kv.first <= kvIn.first){
+	  while(current->forwards[i] != nullptr && (current->forwards[i]->kv.first < kvIn.first || current->forwards[i]->kv.first == kvIn.first)){
 	    current = current->forwards[i];
 	  }
 	  update[i] = current;
@@ -388,8 +491,27 @@ namespace cs540{
     }
     template <typename IT_T>
     void insert(IT_T range_beg, IT_T range_end){}
-    void erase(Iterator pos){}
-    void erase(const Key_T &){}
+    void erase(Iterator &pos){
+      Node* toDelete = pos.nPtr;
+      for(int i = 0; i <= max_level; i++){
+	(toDelete->forwards[i])->backwards[i] = toDelete->backwards[i];
+	(toDelete->backwards[i])->forwards[i] = toDelete->forwards[i];
+      }
+      delete toDelete;
+    }
+    void erase(const Key_T &k){
+      Node* toDelete = findNode(k);
+      if(toDelete->kv.first != k){
+	throw std::out_of_range("Key Not Found");
+      }
+      else{
+	for(int i = 0; i <= max_level; i++){
+	  (toDelete->forwards[i])->backwards[i] = toDelete->backwards[i];
+	  (toDelete->backwards[i])->forwards[i] = toDelete->forwards[i];
+	}
+	delete toDelete;
+      }
+    }
     void clear(){
       Node* current = head[0];
       while(current != nullptr){
@@ -404,19 +526,40 @@ namespace cs540{
     }
     
     // Comparison
-    bool operator==(const Map &){}
-    bool operator!=(const Map &){}
-    bool operator<(const Map &){}
+    bool operator==(const Map &m){
+      bool retVal = true;
+      if(size() != m.size()){
+	retVal = false;
+      }
+      else{
+	for(Iterator it = begin(); it != end(); it++){
+	  ConstIterator it2 = m.find(it->first);
+	  if(it2 == end() || it2->second != it->second){
+	    retVal = false;
+	    break;
+	  }
+	}
+      }
+      return retVal;
+    }
+    bool operator!=(const Map &m){
+      bool retVal = false;
+      if(size() != m.size()){
+	retVal = true;
+      }
+      else{
+	for(Iterator it = begin(); it != end(); it++){
+	  ConstIterator it2 = m.find(it->first);
+	  if(it2 == end() || it2->second != it->second){
+	    retVal = true;
+	    break;
+	  }
+	}
+      }
+      return retVal;
+    }
+    bool operator<(const Map &){
+
+    }
   };
-
-
-  /*  bool operator==(const ConstIterator &, const ConstIterator &){return true;}
-  bool operator==(const Iterator &, const ConstIterator &){return true;}
-  bool operator==(const ConstIterator &, const Iterator &){return true;}
-  bool operator!=(const Iterator &, const Iterator &){return true;}
-  bool operator!=(const ConstIterator &, const ConstIterator &){return true;}
-  bool operator!=(const Iterator &, const ConstIterator &){return true;}
-  bool operator!=(const ConstIterator &, const Iterator &){return true;}
-  bool operator==(const ReverseIterator &, const ReverseIterator &){return true;}
-  bool operator!=(const ReverseIterator &, const ReverseIterator &){return true;}*/
 }
